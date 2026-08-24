@@ -1,0 +1,8 @@
+{{- with resources.Get "css/openbook.css" }}
+  {{- if hugo.IsProduction }}
+    {{- $style := . | minify | fingerprint }}
+    <link rel="stylesheet" href="{{ $style.RelPermalink }}" integrity="{{ $style.Data.Integrity }}">
+  {{- else }}
+    <link rel="stylesheet" href="{{ .RelPermalink }}">
+  {{- end }}
+{{- end }}

@@ -1,0 +1,6 @@
+title: "OpenBook for Hugo Demo"
+baseURL: "http://localhost:1313/"
+
+module:
+  imports:
+    - path: github.com/goulu/openbook4hugo

@@ -1,0 +1,246 @@
+{{- /* OpenBook 4 Hugo Shortcode */ -}}
+{{- $booknumber := "" -}}
+{{- $templatenumber := "1" -}}
+{{- $revisionnumber := "" -}}
+{{- $publisherurl := "" -}}
+{{- $customtemplate := "" -}}
+{{- $openurlresolver := "" -}}
+
+{{- if .IsNamedParams -}}
+  {{- $booknumber = or (.Get "booknumber") (.Get "isbn") (.Get "olid") (.Get "id") "" -}}
+  {{- $templatenumber = string (or (.Get "templatenumber") (.Get "template_number") "1") -}}
+  {{- $revisionnumber = string (or (.Get "revisionnumber") (.Get "v") "") -}}
+  {{- $publisherurl = or (.Get "publisherurl") "" -}}
+  {{- $customtemplate = or (.Get "template") "" -}}
+  {{- $openurlresolver = or (.Get "openurlresolver") "" -}}
+{{- else -}}
+  {{- $booknumber = .Get 0 -}}
+  {{- if ge (len .Params) 2 -}}
+    {{- $templatenumber = string (.Get 1) -}}
+  {{- end -}}
+  {{- if ge (len .Params) 3 -}}
+    {{- $revisionnumber = string (.Get 2) -}}
+  {{- end -}}
+{{- end -}}
+
+{{- /* Clean and determine bibkey */ -}}
+{{- $booknumber = trim (replace $booknumber "'" "") " " -}}
+{{- $bibkey := "" -}}
+{{- if findRE "(?i)/b/OL" $booknumber -}}
+  {{- $bibkey = printf "OLID:%s" (index (split $booknumber "/b/OL") 1) -}}
+{{- else if findRE "(?i)/books/OL" $booknumber -}}
+  {{- $bibkey = printf "OLID:%s" (index (split $booknumber "/books/OL") 1) -}}
+{{- else if findRE ":" $booknumber -}}
+  {{- $bibkey = $booknumber -}}
+{{- else -}}
+  {{- $bibkey = printf "ISBN:%s" $booknumber -}}
+{{- end -}}
+
+{{- $apiUrl := printf "https://openlibrary.org/api/books?bibkeys=%s&jscmd=data&format=json" $bibkey -}}
+{{- $bookData := dict -}}
+
+{{- with try (resources.GetRemote $apiUrl) -}}
+  {{- with .Err -}}
+    {{- /* Remote fetch error */ -}}
+  {{- else -}}
+    {{- with .Value -}}
+      {{- $json := unmarshal .Content -}}
+      {{- with index $json $bibkey -}}
+        {{- $bookData = . -}}
+      {{- end -}}
+    {{- end -}}
+  {{- end -}}
+{{- end -}}
+
+{{- if not $bookData -}}
+  {{- /* Fallback if Open Library data is unavailable */ -}}
+  <span class="openbook_fallback">
+    <a href="https://openlibrary.org/search?q={{ $booknumber }}" target="_blank" rel="noopener">[{{ $booknumber }} on Open Library]</a>
+  </span>
+{{- else -}}
+  {{- /* Extract data fields */ -}}
+  {{- $olUrl := or $bookData.url (printf "https://openlibrary.org/search?q=%s" $booknumber) -}}
+  {{- if $revisionnumber -}}
+    {{- $olUrl = printf "%s?v=%s" $olUrl $revisionnumber -}}
+  {{- end -}}
+
+  {{- $title := $bookData.title | default "Untitled" -}}
+  {{- with $bookData.subtitle -}}
+    {{- $title = printf "%s: %s" $title . -}}
+  {{- end -}}
+  {{- $titleHtml := printf `<a href="%s" title="Click to view title in Open Library" target="_blank" rel="noopener">%s</a>` $olUrl $title -}}
+
+  {{- /* Authors */ -}}
+  {{- $authorsList := slice -}}
+  {{- $firstAuthor := "" -}}
+  {{- with $bookData.authors -}}
+    {{- range $idx, $author := . -}}
+      {{- if eq $idx 0 -}}{{- $firstAuthor = $author.name -}}{{- end -}}
+      {{- $authorUrl := or $author.url (printf "https://openlibrary.org/search?q=%s" (urlquery $author.name)) -}}
+      {{- $authorsList = $authorsList | append (printf `<a href="%s" title="Click to view author in Open Library" target="_blank" rel="noopener">%s</a>` $authorUrl $author.name) -}}
+    {{- end -}}
+  {{- end -}}
+  {{- $authorsHtml := delimit $authorsList ", " -}}
+  {{- if not $authorsHtml -}}
+    {{- $authorsHtml = or $bookData.by_statement (or $bookData.contributions "") -}}
+  {{- end -}}
+
+  {{- /* Publisher */ -}}
+  {{- $publisherName := "" -}}
+  {{- with $bookData.publishers -}}
+    {{- with index . 0 -}}
+      {{- $publisherName = .name -}}
+    {{- end -}}
+  {{- end -}}
+  {{- $publisherHtml := $publisherName -}}
+  {{- if and $publisherName $publisherurl -}}
+    {{- $publisherHtml = printf `<a href="%s" title="Click to view publisher website" target="_blank" rel="noopener">%s</a>` $publisherurl $publisherName -}}
+  {{- end -}}
+
+  {{- /* Publish Year */ -}}
+  {{- $publishYear := "" -}}
+  {{- with $bookData.publish_date -}}
+    {{- $yearMatches := findRE "[12][0-9]{3}" . 1 -}}
+    {{- if gt (len $yearMatches) 0 -}}
+      {{- $publishYear = index $yearMatches 0 -}}
+    {{- else -}}
+      {{- $publishYear = . -}}
+    {{- end -}}
+  {{- end -}}
+
+  {{- /* Covers */ -}}
+  {{- $coverMediumHtml := "" -}}
+  {{- $coverSmallHtml := "" -}}
+  {{- $coverLargeHtml := "" -}}
+  {{- with $bookData.cover -}}
+    {{- with .medium -}}
+      {{- $coverMediumHtml = printf `<a href="%s" title="Click to view title in Open Library" target="_blank" rel="noopener"><img src="%s" alt="%s" /></a>` $olUrl . $title -}}
+    {{- end -}}
+    {{- with .small -}}
+      {{- $coverSmallHtml = printf `<a href="%s" title="Click to view title in Open Library" target="_blank" rel="noopener"><img src="%s" alt="%s" /></a>` $olUrl . $title -}}
+    {{- end -}}
+    {{- with .large -}}
+      {{- $coverLargeHtml = printf `<a href="%s" title="Click to view title in Open Library" target="_blank" rel="noopener"><img src="%s" alt="%s" /></a>` $olUrl . $title -}}
+    {{- end -}}
+  {{- end -}}
+
+  {{- /* Identifiers */ -}}
+  {{- $isbn := "" -}}
+  {{- $oclc := "" -}}
+  {{- $lccn := "" -}}
+  {{- $goodreads := "" -}}
+  {{- $librarything := "" -}}
+  {{- with $bookData.identifiers -}}
+    {{- with .isbn_13 -}}{{- $isbn = index . 0 -}}{{- end -}}
+    {{- if not $isbn -}}{{- with .isbn_10 -}}{{- $isbn = index . 0 -}}{{- end -}}{{- end -}}
+    {{- with .oclc -}}{{- $oclc = index . 0 -}}{{- end -}}
+    {{- with .lccn -}}{{- $lccn = index . 0 -}}{{- end -}}
+    {{- with .goodreads -}}{{- $goodreads = index . 0 -}}{{- end -}}
+    {{- with .librarything -}}{{- $librarything = index . 0 -}}{{- end -}}
+  {{- end -}}
+
+  {{- /* External Links */ -}}
+  {{- $linkList := slice -}}
+  
+  {{- /* WorldCat */ -}}
+  {{- $worldcatUrl := "" -}}
+  {{- if $oclc -}}
+    {{- $worldcatUrl = printf "https://www.worldcat.org/oclc/%s" $oclc -}}
+  {{- else if $isbn -}}
+    {{- $worldcatUrl = printf "https://www.worldcat.org/isbn/%s" $isbn -}}
+  {{- else if $title -}}
+    {{- $worldcatUrl = printf "https://www.worldcat.org/search?q=ti%%3A%s" (urlquery $title) -}}
+  {{- end -}}
+  {{- if $worldcatUrl -}}
+    {{- $linkList = $linkList | append (printf `<a href="%s" title="WorldCat" target="_blank" rel="noopener">WorldCat</a>` $worldcatUrl) -}}
+  {{- end -}}
+
+  {{- /* Read Online */ -}}
+  {{- with $bookData.url -}}
+    {{- $linkList = $linkList | append (printf `<a href="%s" title="Read Online" target="_blank" rel="noopener">Open Library</a>` .) -}}
+  {{- end -}}
+
+  {{- /* LibraryThing */ -}}
+  {{- $ltUrl := "" -}}
+  {{- if $librarything -}}
+    {{- $ltUrl = printf "https://www.librarything.com/work/%s" $librarything -}}
+  {{- else if $isbn -}}
+    {{- $ltUrl = printf "https://www.librarything.com/isbn/%s" $isbn -}}
+  {{- end -}}
+  {{- if $ltUrl -}}
+    {{- $linkList = $linkList | append (printf `<a href="%s" title="LibraryThing" target="_blank" rel="noopener">LibraryThing</a>` $ltUrl) -}}
+  {{- end -}}
+
+  {{- /* Google Books */ -}}
+  {{- $gbUrl := "" -}}
+  {{- if $isbn -}}
+    {{- $gbUrl = printf "https://books.google.com/books?as_isbn=%s" $isbn -}}
+  {{- else if $title -}}
+    {{- $gbUrl = printf "https://books.google.com/books?as_vt=%s" (urlquery $title) -}}
+  {{- end -}}
+  {{- if $gbUrl -}}
+    {{- $linkList = $linkList | append (printf `<a href="%s" title="Google Books" target="_blank" rel="noopener">Google Books</a>` $gbUrl) -}}
+  {{- end -}}
+
+  {{- /* BookFinder */ -}}
+  {{- $bfUrl := "" -}}
+  {{- if $isbn -}}
+    {{- $bfUrl = printf "https://www.bookfinder.com/search/?st=xl&ac=qr&isbn=%s" $isbn -}}
+  {{- else if $title -}}
+    {{- $bfUrl = printf "https://www.bookfinder.com/search/?submit=Begin+search&new_used=*&mode=basic&st=sr&ac=qr&title=%s" (urlquery $title) -}}
+  {{- end -}}
+  {{- if $bfUrl -}}
+    {{- $linkList = $linkList | append (printf `<a href="%s" title="BookFinder" target="_blank" rel="noopener">BookFinder</a>` $bfUrl) -}}
+  {{- end -}}
+
+  {{- $linksHtml := delimit $linkList ` <span class="openbook_dot">&bull;</span> ` -}}
+
+  {{- /* COinS (ContextObjects in Spans) metadata */ -}}
+  {{- $coinsParams := slice "ctx_ver=Z39.88-2004" "rft_val_fmt=info%3Aofi%2Ffmt%3Akev%3Amtx%3Abook" "rft.genre=book" -}}
+  {{- $coinsParams = $coinsParams | append (printf "rft.btitle=%s" (urlquery $title)) -}}
+  {{- with $isbn -}}{{- $coinsParams = $coinsParams | append (printf "rft.isbn=%s" .) -}}{{- end -}}
+  {{- with $firstAuthor -}}{{- $coinsParams = $coinsParams | append (printf "rft.au=%s" (urlquery .)) -}}{{- end -}}
+  {{- with $publisherName -}}{{- $coinsParams = $coinsParams | append (printf "rft.pub=%s" (urlquery .)) -}}{{- end -}}
+  {{- with $publishYear -}}{{- $coinsParams = $coinsParams | append (printf "rft.date=%s" .) -}}{{- end -}}
+  {{- $coinsQuery := delimit $coinsParams "&amp;" -}}
+  {{- $coinsHtml := printf `<span class="Z3988" title="%s">&nbsp;</span>` $coinsQuery -}}
+
+  {{- /* Render according to template number */ -}}
+  {{- if eq $templatenumber "2" -}}
+    <span class="openbook_wrapper1">
+      {{- with $coverSmallHtml }}<span class="openbook_cover2">{{ . | safeHTML }}</span>{{ end -}}
+      <span class="openbook_title2">{{ $titleHtml | safeHTML }}{{ if $firstAuthor }}; {{ $firstAuthor }}{{ end }}</span>
+      {{- $coinsHtml | safeHTML -}}
+    </span>
+  {{- else if eq $templatenumber "3" -}}
+    <span class="openbook_wrapper3">
+      {{- with $coverLargeHtml }}<span class="openbook_cover3">{{ . | safeHTML }}</span>{{ end -}}
+      {{- with $linksHtml }}<span class="openbook_links1">{{ . | safeHTML }}</span>{{ end -}}
+      {{- $coinsHtml | safeHTML -}}
+    </span>
+  {{- else if eq $templatenumber "4" -}}
+    {{ $titleHtml | safeHTML }}
+  {{- else if eq $templatenumber "5" -}}
+    <span class="openbook_template5">
+      {{- if $authorsHtml }}{{ $authorsHtml | safeHTML }}{{ end -}}
+      {{- if $publishYear }} ({{ $publishYear }}).{{ end }}
+      {{- if $titleHtml }} {{ $titleHtml | safeHTML }}.{{ end -}}
+      {{- if $publisherHtml }} {{ $publisherHtml | safeHTML }}.{{ end -}}
+      {{- $coinsHtml | safeHTML -}}
+    </span>
+  {{- else -}}
+    {{- /* Default: Template 1 */ -}}
+    <span class="openbook_wrapper1">
+      {{- with $coverMediumHtml }}<span class="openbook_cover1">{{ . | safeHTML }}</span>{{ end -}}
+      <span class="openbook_title1">{{ $titleHtml | safeHTML }}</span>
+      <span class="openbook_author1">
+        {{- if $authorsHtml }}{{ $authorsHtml | safeHTML }}{{ end -}}
+        {{- if and $authorsHtml $publisherHtml }}; {{ end -}}
+        {{- if $publisherHtml }}{{ $publisherHtml | safeHTML }}{{ end -}}
+        {{- if $publishYear }} {{ $publishYear }}{{ end -}}
+      </span>
+      {{- with $linksHtml }}<span class="openbook_links1">{{ . | safeHTML }}</span>{{ end -}}
+      {{- $coinsHtml | safeHTML -}}
+    </span>
+  {{- end -}}
+{{- end -}}

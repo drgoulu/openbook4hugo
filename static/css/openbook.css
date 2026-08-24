@@ -1,0 +1,67 @@
+/* OpenBook 4 Hugo CSS */
+span.openbook_wrapper1 {
+    display: block;
+    clear: both;
+    margin: 1.25em 0;
+}
+
+span.openbook_wrapper3 {
+    display: block;
+    text-align: center;
+    margin: 1.25em 0;
+}
+
+span.openbook_cover1 {
+    float: left;
+    padding-right: 14px;
+    padding-bottom: 10px;
+}
+
+span.openbook_cover2 {
+    float: left;
+    padding-right: 8px;
+    padding-bottom: 6px;
+}
+
+span.openbook_cover3 {
+    display: block;
+    margin: 0 auto 10px auto;
+}
+
+span.openbook_cover1 img,
+span.openbook_cover2 img,
+span.openbook_cover3 img {
+    border-radius: 4px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.15);
+    max-width: 100%;
+    height: auto;
+}
+
+span.openbook_title1 {
+    font-size: 1.15em;
+    font-weight: bold;
+    display: block;
+    line-height: 1.35;
+}
+
+span.openbook_title2 {
+    font-weight: bold;
+}
+
+span.openbook_author1 {
+    font-size: 0.95em;
+    display: block;
+    margin-top: 4px;
+}
+
+span.openbook_links1 {
+    font-size: 0.85em;
+    display: block;
+    margin-top: 6px;
+    opacity: 0.85;
+}
+
+.openbook_dot {
+    margin: 0 5px;
+    opacity: 0.6;
+}
