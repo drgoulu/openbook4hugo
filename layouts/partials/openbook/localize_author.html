@@ -1,0 +1,85 @@
+{{- /* Localize author name for OpenBook */ -}}
+{{- $author := .author -}}
+{{- $bookData := .bookData | default dict -}}
+{{- $name := "" -}}
+{{- if reflect.IsMap $author -}}
+  {{- $name = $author.name | default "" -}}
+{{- else -}}
+  {{- $name = string $author -}}
+{{- end -}}
+{{- $name = trim $name " " -}}
+
+{{- $localizedName := $name -}}
+
+{{- /* 1. If name is empty, return empty */ -}}
+{{- if $name -}}
+  {{- /* 2. Check if current locale starts with 'zh' */ -}}
+  {{- $isChinese := false -}}
+  {{- with or site.Language.Locale site.Language.LanguageCode site.LanguageCode -}}
+    {{- if strings.HasPrefix (lower .) "zh" -}}
+      {{- $isChinese = true -}}
+    {{- end -}}
+  {{- end -}}
+
+  {{- /* 3. If not Chinese, check for non-Latin characters (Chinese, Japanese, Korean, Cyrillic, Arabic, etc.) */ -}}
+  {{- if not $isChinese -}}
+    {{- $nonLatinRegex := `[\p{Han}\p{Hiragana}\p{Katakana}\p{Hangul}\p{Cyrillic}\p{Arabic}\p{Hebrew}\p{Greek}\p{Devanagari}\p{Thai}]` -}}
+    {{- if findRE $nonLatinRegex $name -}}
+      {{- $latinName := "" -}}
+
+      {{- /* A. Try to fetch author metadata from Open Library */ -}}
+      {{- $authorUrl := "" -}}
+      {{- if reflect.IsMap $author -}}
+        {{- $authorUrl = or $author.url $author.key "" -}}
+      {{- end -}}
+      {{- $authorKeyMatches := findRE `OL[0-9]+A` $authorUrl 1 -}}
+      {{- if gt (len $authorKeyMatches) 0 -}}
+        {{- $authorKey := index $authorKeyMatches 0 -}}
+        {{- $authorApiUrl := printf "https://openlibrary.org/authors/%s.json" $authorKey -}}
+        {{- with try (resources.GetRemote $authorApiUrl) -}}
+          {{- with .Value -}}
+            {{- $authorData := unmarshal .Content -}}
+            {{- with $authorData -}}
+              {{- /* Check alternate_names for a clean Latin name */ -}}
+              {{- with .alternate_names -}}
+                {{- range . -}}
+                  {{- $cand := trim . " " -}}
+                  {{- if and (not (findRE $nonLatinRegex $cand)) (not (strings.Contains $cand ";")) (gt (len $cand) 0) -}}
+                    {{- if and $bookData.by_statement (strings.Contains $bookData.by_statement $cand) -}}
+                      {{- $latinName = $cand -}}
+                    {{- else if not $latinName -}}
+                      {{- $latinName = $cand -}}
+                    {{- end -}}
+                  {{- end -}}
+                {{- end -}}
+              {{- end -}}
+              {{- /* Fallback to personal_name if Latin */ -}}
+              {{- if and (not $latinName) .personal_name -}}
+                {{- $pname := trim .personal_name " " -}}
+                {{- if not (findRE $nonLatinRegex $pname) -}}
+                  {{- $latinName = $pname -}}
+                {{- end -}}
+              {{- end -}}
+            {{- end -}}
+          {{- end -}}
+        {{- end -}}
+      {{- end -}}
+
+      {{- /* B. Fallback: check book's by_statement if Latin author name can be extracted */ -}}
+      {{- if and (not $latinName) $bookData.by_statement -}}
+        {{- $byParts := split $bookData.by_statement ";" -}}
+        {{- $candidate := trim (index $byParts 0) " " -}}
+        {{- if and (not (findRE $nonLatinRegex $candidate)) (gt (len $candidate) 0) -}}
+          {{- $latinName = $candidate -}}
+        {{- end -}}
+      {{- end -}}
+
+      {{- /* If a Latin name was found, format as "Latin Name (Original Name)" */ -}}
+      {{- if $latinName -}}
+        {{- $localizedName = printf "%s (%s)" $latinName $name -}}
+      {{- end -}}
+    {{- end -}}
+  {{- end -}}
+{{- end -}}
+
+{{- return $localizedName -}}

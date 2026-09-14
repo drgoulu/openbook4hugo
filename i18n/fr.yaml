@@ -1,0 +1,20 @@
+- id: openbook_view_title
+  translation: "Voir ce titre sur Open Library"
+
+- id: openbook_view_author
+  translation: "Voir cet auteur sur Open Library"
+
+- id: openbook_view_publisher
+  translation: "Voir le site de l'éditeur"
+
+- id: openbook_read_online
+  translation: "Lire en ligne"
+
+- id: openbook_read_online_title
+  translation: "Lire cet ouvrage en ligne"
+
+- id: openbook_find_worldcat_title
+  translation: "Trouver ce titre dans une bibliothèque avec WorldCat"
+
+- id: openbook_on_openlibrary
+  translation: "%s sur Open Library"

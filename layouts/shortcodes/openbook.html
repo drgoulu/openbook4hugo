@@ -54,10 +54,19 @@
 
 {{- if not $bookData -}}
   {{- /* Fallback if Open Library data is unavailable */ -}}
+  {{- $fallbackTpl := i18n "openbook_on_openlibrary" | default "[%s on Open Library]" -}}
   <span class="openbook_fallback">
-    <a href="https://openlibrary.org/search?q={{ $booknumber }}" target="_blank" rel="noopener">[{{ $booknumber }} on Open Library]</a>
+    <a href="https://openlibrary.org/search?q={{ $booknumber }}" target="_blank" rel="noopener">{{ printf $fallbackTpl $booknumber }}</a>
   </span>
 {{- else -}}
+  {{- /* i18n translations */ -}}
+  {{- $txtViewTitle := i18n "openbook_view_title" | default "View this title in Open Library" -}}
+  {{- $txtViewAuthor := i18n "openbook_view_author" | default "View this author in Open Library" -}}
+  {{- $txtViewPublisher := i18n "openbook_view_publisher" | default "View the publisher's website" -}}
+  {{- $txtReadOnline := i18n "openbook_read_online" | default "Read Online" -}}
+  {{- $txtReadOnlineTitle := i18n "openbook_read_online_title" | default "Read this work online" -}}
+  {{- $txtFindWorldcatTitle := i18n "openbook_find_worldcat_title" | default "Find this title in a library using WorldCat" -}}
+
   {{- /* Extract data fields */ -}}
   {{- $olUrl := or $bookData.url (printf "https://openlibrary.org/search?q=%s" $booknumber) -}}
   {{- if $revisionnumber -}}
@@ -68,21 +77,24 @@
   {{- with $bookData.subtitle -}}
     {{- $title = printf "%s: %s" $title . -}}
   {{- end -}}
-  {{- $titleHtml := printf `<a href="%s" title="Click to view title in Open Library" target="_blank" rel="noopener">%s</a>` $olUrl $title -}}
+  {{- $titleHtml := printf `<a href="%s" title="%s" target="_blank" rel="noopener">%s</a>` $olUrl $txtViewTitle $title -}}
 
   {{- /* Authors */ -}}
   {{- $authorsList := slice -}}
   {{- $firstAuthor := "" -}}
   {{- with $bookData.authors -}}
     {{- range $idx, $author := . -}}
-      {{- if eq $idx 0 -}}{{- $firstAuthor = $author.name -}}{{- end -}}
+      {{- $authorDisplayName := partial "openbook/localize_author.html" (dict "author" $author "bookData" $bookData) -}}
+      {{- if eq $idx 0 -}}{{- $firstAuthor = $authorDisplayName -}}{{- end -}}
       {{- $authorUrl := or $author.url (printf "https://openlibrary.org/search?q=%s" (urlquery $author.name)) -}}
-      {{- $authorsList = $authorsList | append (printf `<a href="%s" title="Click to view author in Open Library" target="_blank" rel="noopener">%s</a>` $authorUrl $author.name) -}}
+      {{- $authorsList = $authorsList | append (printf `<a href="%s" title="%s" target="_blank" rel="noopener">%s</a>` $authorUrl $txtViewAuthor $authorDisplayName) -}}
     {{- end -}}
   {{- end -}}
   {{- $authorsHtml := delimit $authorsList ", " -}}
   {{- if not $authorsHtml -}}
-    {{- $authorsHtml = or $bookData.by_statement (or $bookData.contributions "") -}}
+    {{- with or $bookData.by_statement (or $bookData.contributions "") -}}
+      {{- $authorsHtml = partial "openbook/localize_author.html" (dict "author" . "bookData" $bookData) -}}
+    {{- end -}}
   {{- end -}}
 
   {{- /* Publisher */ -}}
@@ -94,7 +106,7 @@
   {{- end -}}
   {{- $publisherHtml := $publisherName -}}
   {{- if and $publisherName $publisherurl -}}
-    {{- $publisherHtml = printf `<a href="%s" title="Click to view publisher website" target="_blank" rel="noopener">%s</a>` $publisherurl $publisherName -}}
+    {{- $publisherHtml = printf `<a href="%s" title="%s" target="_blank" rel="noopener">%s</a>` $publisherurl $txtViewPublisher $publisherName -}}
   {{- end -}}
 
   {{- /* Publish Year */ -}}
@@ -114,13 +126,13 @@
   {{- $coverLargeHtml := "" -}}
   {{- with $bookData.cover -}}
     {{- with .medium -}}
-      {{- $coverMediumHtml = printf `<a href="%s" title="Click to view title in Open Library" target="_blank" rel="noopener"><img src="%s" alt="%s" /></a>` $olUrl . $title -}}
+      {{- $coverMediumHtml = printf `<a href="%s" title="%s" target="_blank" rel="noopener"><img src="%s" alt="%s" /></a>` $olUrl $txtViewTitle . $title -}}
     {{- end -}}
     {{- with .small -}}
-      {{- $coverSmallHtml = printf `<a href="%s" title="Click to view title in Open Library" target="_blank" rel="noopener"><img src="%s" alt="%s" /></a>` $olUrl . $title -}}
+      {{- $coverSmallHtml = printf `<a href="%s" title="%s" target="_blank" rel="noopener"><img src="%s" alt="%s" /></a>` $olUrl $txtViewTitle . $title -}}
     {{- end -}}
     {{- with .large -}}
-      {{- $coverLargeHtml = printf `<a href="%s" title="Click to view title in Open Library" target="_blank" rel="noopener"><img src="%s" alt="%s" /></a>` $olUrl . $title -}}
+      {{- $coverLargeHtml = printf `<a href="%s" title="%s" target="_blank" rel="noopener"><img src="%s" alt="%s" /></a>` $olUrl $txtViewTitle . $title -}}
     {{- end -}}
   {{- end -}}
 
@@ -152,12 +164,12 @@
     {{- $worldcatUrl = printf "https://www.worldcat.org/search?q=ti%%3A%s" (urlquery $title) -}}
   {{- end -}}
   {{- if $worldcatUrl -}}
-    {{- $linkList = $linkList | append (printf `<a href="%s" title="WorldCat" target="_blank" rel="noopener">WorldCat</a>` $worldcatUrl) -}}
+    {{- $linkList = $linkList | append (printf `<a href="%s" title="%s" target="_blank" rel="noopener">WorldCat</a>` $worldcatUrl $txtFindWorldcatTitle) -}}
   {{- end -}}
 
   {{- /* Read Online */ -}}
   {{- with $bookData.url -}}
-    {{- $linkList = $linkList | append (printf `<a href="%s" title="Read Online" target="_blank" rel="noopener">Open Library</a>` .) -}}
+    {{- $linkList = $linkList | append (printf `<a href="%s" title="%s" target="_blank" rel="noopener">%s</a>` . $txtReadOnlineTitle $txtReadOnline) -}}
   {{- end -}}
 
   {{- /* LibraryThing */ -}}
