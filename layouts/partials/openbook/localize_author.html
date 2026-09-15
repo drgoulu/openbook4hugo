@@ -15,7 +15,7 @@
 {{- if $name -}}
   {{- /* 2. Check if current locale starts with 'zh' */ -}}
   {{- $isChinese := false -}}
-  {{- with or site.Language.Locale site.Language.LanguageCode site.LanguageCode -}}
+  {{- with or site.Language.Locale site.Language.Lang -}}
     {{- if strings.HasPrefix (lower .) "zh" -}}
       {{- $isChinese = true -}}
     {{- end -}}
