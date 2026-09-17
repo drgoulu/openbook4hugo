@@ -36,10 +36,15 @@
       {{- if gt (len $authorKeyMatches) 0 -}}
         {{- $authorKey := index $authorKeyMatches 0 -}}
         {{- $authorApiUrl := printf "https://openlibrary.org/authors/%s.json" $authorKey -}}
-        {{- with try (resources.GetRemote $authorApiUrl) -}}
+        {{- /* Cache key valid for one month */ -}}
+        {{- $cacheFormat := site.Params.openbook.cache_format | default "2006-01" -}}
+        {{- $authorCacheKey := printf "openbook-author-%s-%s" $authorKey (now.Format $cacheFormat) -}}
+        {{- $authorOpts := dict "key" $authorCacheKey "headers" (dict "User-Agent" "openbook4hugo/1.0 (https://github.com/goulu/openbook4hugo)") -}}
+        {{- with try (resources.GetRemote $authorApiUrl $authorOpts) -}}
           {{- with .Value -}}
-            {{- $authorData := unmarshal .Content -}}
-            {{- with $authorData -}}
+            {{- if .Content -}}
+              {{- $authorData := unmarshal .Content -}}
+              {{- with $authorData -}}
               {{- /* Check alternate_names for a clean Latin name */ -}}
               {{- with .alternate_names -}}
                 {{- range . -}}
@@ -63,6 +68,7 @@
             {{- end -}}
           {{- end -}}
         {{- end -}}
+      {{- end -}}
       {{- end -}}
 
       {{- /* B. Fallback: check book's by_statement if Latin author name can be extracted */ -}}

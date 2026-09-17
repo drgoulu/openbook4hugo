@@ -39,14 +39,21 @@
 {{- $apiUrl := printf "https://openlibrary.org/api/books?bibkeys=%s&jscmd=data&format=json" $bibkey -}}
 {{- $bookData := dict -}}
 
-{{- with try (resources.GetRemote $apiUrl) -}}
+{{- /* Cache key valid for one month */ -}}
+{{- $cacheFormat := site.Params.openbook.cache_format | default "2006-01" -}}
+{{- $cacheKey := printf "openbook-%s-%s" $bibkey (now.Format $cacheFormat) -}}
+{{- $opts := dict "key" $cacheKey "headers" (dict "User-Agent" "openbook4hugo/1.0 (https://github.com/goulu/openbook4hugo)") -}}
+
+{{- with try (resources.GetRemote $apiUrl $opts) -}}
   {{- with .Err -}}
     {{- /* Remote fetch error */ -}}
   {{- else -}}
     {{- with .Value -}}
-      {{- $json := unmarshal .Content -}}
-      {{- with index $json $bibkey -}}
-        {{- $bookData = . -}}
+      {{- if .Content -}}
+        {{- $json := unmarshal .Content -}}
+        {{- with index $json $bibkey -}}
+          {{- $bookData = . -}}
+        {{- end -}}
       {{- end -}}
     {{- end -}}
   {{- end -}}

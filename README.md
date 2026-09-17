@@ -99,6 +99,31 @@ OpenBook supports 5 built-in display templates, matching the WordPress plugin:
 
 ---
 
+## Caching
+
+OpenBook caches remote Open Library requests using Hugo's resource cache to avoid querying the remote API on every site rebuild:
+
+- **Automatic Monthly Cache**: Cache keys are generated using the current year and month format (`2006-01`), making cached data valid for **one month** before automatically fetching fresh data.
+- **Custom Cache Period**: You can optionally customize the format in your site configuration (`hugo.yaml`):
+  ```yaml
+  params:
+    openbook:
+      cache_format: "2006-01" # Default: monthly. Use "2006-01-02" for daily, "2006" for yearly.
+  ```
+- **Hugo File Cache Configuration**: Hugo persists remote resources in its `getresource` file cache. You can also configure its duration in `hugo.yaml`:
+  ```yaml
+  caches:
+    getresource:
+      dir: ":cacheDir/:project"
+      maxAge: 720h # 30 days (1 month)
+  ```
+- **Force Refresh**: To force a fresh download of all remote data, run Hugo with `--ignoreCache`:
+  ```bash
+  hugo --ignoreCache
+  ```
+
+---
+
 ## Compatibility with WordPress Shortcodes
 
 If you are migrating content from WordPress that used `[openbook booknumber="..." templatenumber="5"]`, you can either convert them to `{{< openbook booknumber="..." templatenumber="5" >}}` or use Hugo shortcode syntax.
