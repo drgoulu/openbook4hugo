@@ -23,20 +23,31 @@
   {{- end -}}
 {{- end -}}
 
-{{- /* Clean and determine bibkey */ -}}
+{{- /* Clean and determine bibkey and identifier parts */ -}}
 {{- $booknumber = trim (replace $booknumber "'" "") " " -}}
 {{- $bibkey := "" -}}
+{{- $idType := "" -}}
+{{- $idVal := "" -}}
 {{- if findRE "(?i)/b/OL" $booknumber -}}
-  {{- $bibkey = printf "OLID:%s" (index (split $booknumber "/b/OL") 1) -}}
+  {{- $idVal = index (split $booknumber "/b/OL") 1 -}}
+  {{- $bibkey = printf "OLID:%s" $idVal -}}
+  {{- $idType = "OLID" -}}
 {{- else if findRE "(?i)/books/OL" $booknumber -}}
-  {{- $bibkey = printf "OLID:%s" (index (split $booknumber "/books/OL") 1) -}}
+  {{- $idVal = index (split $booknumber "/books/OL") 1 -}}
+  {{- $bibkey = printf "OLID:%s" $idVal -}}
+  {{- $idType = "OLID" -}}
 {{- else if findRE ":" $booknumber -}}
-  {{- $bibkey = $booknumber -}}
+  {{- $parts := split $booknumber ":" -}}
+  {{- $idType = upper (index $parts 0) -}}
+  {{- $idVal = index $parts 1 -}}
+  {{- $bibkey = printf "%s:%s" $idType $idVal -}}
 {{- else -}}
-  {{- $bibkey = printf "ISBN:%s" $booknumber -}}
+  {{- $idType = "ISBN" -}}
+  {{- $idVal = $booknumber -}}
+  {{- $bibkey = printf "ISBN:%s" $idVal -}}
 {{- end -}}
 
-{{- $apiUrl := printf "https://openlibrary.org/api/books?bibkeys=%s&jscmd=data&format=json" $bibkey -}}
+{{- $apiUrl := printf "https://openlibrary.org/api/books.json?bibkeys=%s&jscmd=data&format=json" $bibkey -}}
 {{- $bookData := dict -}}
 
 {{- /* Cache key valid for one month */ -}}
@@ -46,7 +57,7 @@
 
 {{- with try (resources.GetRemote $apiUrl $opts) -}}
   {{- with .Err -}}
-    {{- /* Remote fetch error */ -}}
+    <!-- Remote fetch error: {{ . }} -->
   {{- else -}}
     {{- with .Value -}}
       {{- if .Content -}}
@@ -62,8 +73,16 @@
 {{- if not $bookData -}}
   {{- /* Fallback if Open Library data is unavailable */ -}}
   {{- $fallbackTpl := i18n "openbook_on_openlibrary" | default "[%s on Open Library]" -}}
+  {{- $fallbackUrl := printf "https://openlibrary.org/search?q=%s" (urlquery $idVal) -}}
+  {{- if eq $idType "ISBN" -}}
+    {{- $cleanIsbn := replace $idVal "-" "" -}}
+    {{- $fallbackUrl = printf "https://openlibrary.org/isbn/%s" $cleanIsbn -}}
+  {{- else if eq $idType "OLID" -}}
+    {{- $cleanOlid := strings.TrimPrefix "OLID:" (strings.TrimPrefix "OL" $idVal) -}}
+    {{- $fallbackUrl = printf "https://openlibrary.org/books/OL%s" $cleanOlid -}}
+  {{- end -}}
   <span class="openbook_fallback">
-    <a href="https://openlibrary.org/search?q={{ $booknumber }}" target="_blank" rel="noopener">{{ printf $fallbackTpl $booknumber }}</a>
+    <a href="{{ $fallbackUrl }}" target="_blank" rel="noopener">{{ printf $fallbackTpl $booknumber }}</a>
   </span>
 {{- else -}}
   {{- /* i18n translations */ -}}
