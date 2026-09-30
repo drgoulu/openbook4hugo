@@ -72,7 +72,7 @@
 
 {{- if not $bookData -}}
   {{- /* Fallback if Open Library data is unavailable */ -}}
-  {{- $fallbackTpl := i18n "openbook_on_openlibrary" | default "[%s on Open Library]" -}}
+  {{- $fallbackTpl := i18n "openbook_on_openlibrary" | default "[%s pas trouvé sur Open Library]" -}}
   {{- $fallbackUrl := printf "https://openlibrary.org/search?q=%s" (urlquery $idVal) -}}
   {{- if eq $idType "ISBN" -}}
     {{- $cleanIsbn := replace $idVal "-" "" -}}
@@ -81,8 +81,8 @@
     {{- $cleanOlid := strings.TrimPrefix "OLID:" (strings.TrimPrefix "OL" $idVal) -}}
     {{- $fallbackUrl = printf "https://openlibrary.org/books/OL%s" $cleanOlid -}}
   {{- end -}}
-  <span class="openbook_fallback">
-    <a href="{{ $fallbackUrl }}" target="_blank" rel="noopener">{{ printf $fallbackTpl $booknumber }}</a>
+  <span class="openbook_fallback" style="color: #dc2626;">
+    <a href="{{ $fallbackUrl }}" target="_blank" rel="noopener" style="color: #dc2626;">{{ printf $fallbackTpl $booknumber }}</a>
   </span>
 {{- else -}}
   {{- /* i18n translations */ -}}

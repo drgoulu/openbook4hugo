@@ -17,4 +17,5 @@
   translation: "Find this title in a library using WorldCat"
 
 - id: openbook_on_openlibrary
-  translation: "%s on Open Library"
+  translation: "[%s not found on Open Library]"
+
